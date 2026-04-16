@@ -159,8 +159,12 @@ tr:hover td{background:#1a223644}
       <h3>Announcement Timing vs. Outcome</h3>
       <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
       <div class="timing-stats">
-        <div class="timing-stat"><div class="val green" id="t-avg-approved">—</div><div class="lbl">Avg Days (Approved)</div></div>
-        <div class="timing-stat"><div class="val red" id="t-avg-failed">—</div><div class="lbl">Avg Days (CRL)</div></div>
+        <div class="timing-stat"><div class="val green" id="t-avg-approved">—</div><div class="lbl">Avg Days Before PDUFA (Approved)</div></div>
+        <div class="timing-stat"><div class="val red" id="t-avg-failed">—</div><div class="lbl">Avg Days Before PDUFA (CRL)</div></div>
+      </div>
+      <div class="timing-stats" style="margin-top:8px">
+        <div class="timing-stat"><div class="val green" id="t-acc-approved">—</div><div class="lbl">Avg Days Post-Accept (Approved)</div></div>
+        <div class="timing-stat"><div class="val red" id="t-acc-failed">—</div><div class="lbl">Avg Days Post-Accept (CRL)</div></div>
       </div>
       <div class="insight-box" id="timing-insight"></div>
     </div>
@@ -192,13 +196,14 @@ tr:hover td{background:#1a223644}
           <th onclick="sortTable(3)">Year</th>
           <th onclick="sortTable(4)">Category</th>
           <th onclick="sortTable(5)">Stated Reason for Extension</th>
-          <th onclick="sortTable(6)">Days Notice</th>
-          <th onclick="sortTable(7)">Orphan</th>
-          <th onclick="sortTable(8)">Review</th>
-          <th onclick="sortTable(9)">App Type</th>
-          <th onclick="sortTable(10)">BTD</th>
-          <th onclick="sortTable(11)">Division</th>
-          <th onclick="sortTable(12)">Outcome</th>
+          <th onclick="sortTable(6)">Days Before PDUFA</th>
+          <th onclick="sortTable(7)">Days Post Accept</th>
+          <th onclick="sortTable(8)">Orphan</th>
+          <th onclick="sortTable(9)">Review</th>
+          <th onclick="sortTable(10)">App Type</th>
+          <th onclick="sortTable(11)">BTD</th>
+          <th onclick="sortTable(12)">Division</th>
+          <th onclick="sortTable(13)">Outcome</th>
         </tr></thead>
         <tbody id="case-table"></tbody>
       </table>
@@ -276,6 +281,81 @@ const DATA=[
 {company:"Savara",drug:"Molgramostim (Molbreevi)",indication:"Autoimmune PAP",year:2026,origPdufa:"2026-08-22",reason:"Major Amendment (Other)",reasonDetail:"FDA determined that Company's responses to recent information requests constituted a major amendment to the BLA. Agency did not cite any safety, efficacy, or manufacturing concerns. New PDUFA Nov 22, 2026.",orphan:"Yes",review:"Priority",accel:"Unknown",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Pulmonary/Allergy",daysNotice:null,status:"Pending",outcome:"Pending (PDUFA Nov 22, 2026)",notes:"Extension announced Apr 15, 2026; vague language; initial RTF for CMC resolved; IMPALA-2 NEJM pub"},
 {company:"Lantheus",drug:"LNTH-2501",indication:"SSTR+ NET Imaging",year:2026,origPdufa:"2026-03-29",reason:"CMC/Manufacturing",reasonDetail:"FDA needed additional time to review further manufacturing-related information submitted by Lantheus; explicitly not related to efficacy or safety data",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Other CDER",daysNotice:12,status:"Pending",outcome:"Pending (PDUFA Jun 2026)",notes:"Diagnostic imaging kit; 505(b)(2)"}
 ];
+
+// NDA/BLA acceptance dates and extension announcement dates — used to compute daysFromAcceptance
+const ACCEPT_DATES={
+"Blueprint|Avapritinib":"2019-08-07","Zogenix|Fintepla":"2019-11-25","Acacia Pharma|BYFAVO (remimazolam)":"2019-06-10",
+"Heron Therapeutics|HTX-011 (Zynrelef)":"2019-10-28","Orphazyme|Arimoclomol":"2020-09-16",
+"Verrica|VP-102 (YCANTH)":"2021-02-17","Incyte|Ruxolitinib cream (Opzelura)":"2021-02-19",
+"Ardelyx|Tenapanor (Xphozah)":"2020-09-15","AbbVie|Upadacitinib (Rinvoq)":"2020-12-15",
+"BioXcel|BXCL501 (Igalmi)":"2021-05-19","Calliditas|Nefecon (Tarpeyo)":"2021-04-28",
+"Biogen/Eisai|Aducanumab (Aduhelm)":"2020-08-07","CTI BioPharma|Pacritinib (Vonjo)":"2021-06-01",
+"Amylyx|AMX0035 (Relyvrio)":"2021-12-29","Biogen|Tofersen (Qalsody)":"2022-07-26",
+"BeiGene|BRUKINSA (zanubrutinib)":"2022-02-22","TG Therapeutics|Ublituximab (Briumvi)":"2021-12-14",
+"Amicus|AT-GAA (Pombiliti)":"2021-09-29","Legend/Janssen|Cilta-cel (Carvykti)":"2021-05-26",
+"Alnylam|Vutrisiran (Amvuttra)":"2021-06-24","Provention Bio|Teplizumab (Tzield)":"2022-03-21",
+"Pfizer|Paxlovid NDA":"2022-08-01","AstraZeneca/Merck|Lynparza+Abiraterone sNDA":"2022-08-16",
+"Bluebird Bio|Zynteglo (beti-cel)":"2021-11-22","Bluebird Bio|Skysona (eli-cel)":"2021-12-17",
+"Krystal Biotech|B-VEC (Vyjuvek)":"2022-08-18","argenx|Vyvgart Hytrulo (SC efgartigimod)":"2022-11-22",
+"SpringWorks|Nirogacestat (Ogsiveo)":"2023-02-27","BeiGene|Tislelizumab (Tevimbra)":"2021-09-13",
+"Iovance|Lifileucel (Amtagvi)":"2023-05-26","ARS Pharma|Neffy":"2022-10-21",
+"Valneva|Ixchiq (VLA1553)":"2023-02-20","Gamida Cell|Omidubicel (Omisirge)":"2022-08-01",
+"BioMarin|Roctavian":"2022-10-12","Sarepta|Elevidys":"2022-11-28",
+"Apellis|Syfovre (pegcetacoplan)":"2022-07-19","Mirum|Livmarli sNDA":"2023-06-01",
+"Atara Bio|Tabelecleucel":"2024-07-17","Rocket Pharma|KRESLADI":"2023-10-02",
+"Merus|Zenocutuzumab (Bizengri)":"2024-05-06","Ascendis|Yorvipath (TransCon PTH)":"2023-12-11",
+"Syndax|Revumenib (Revuforj)":"2024-03-26","Stealth Bio|Elamipretide (Forzinity)":"2024-03-29",
+"Regeneron/Sanofi|Dupixent sBLA":"2024-02-23","Applied Therapeutics|Govorestat":"2024-02-28",
+"Dermavant/Organon|Tapinarof (VTAMA) sNDA":"2024-04-29","Amgen|Sotorasib+Panitumumab":"2024-04-15",
+"Intercept|Ocaliva sNDA":"2024-02-29","Aldeyra|Reproxalap":"2025-07-16",
+"Soleno|DCCR / VYKAT XR":"2024-08-27","Cytokinetics|Aficamten (Myqorzo)":"2024-12-02",
+"Denali|Tividenofusp alfa (Avlayah)":"2025-07-07","Ascendis|Navepegritide (Yuviwel)":"2025-06-02",
+"Rhythm Pharma|IMCIVREE sNDA":"2025-08-20","GSK|Blenrep (belantamab mafodotin)":"2024-11-25",
+"Agios|Mitapivat (Aqvesme) sNDA":"2025-01-08","Sanofi|Tolebrutinib":"2025-03-25",
+"Eton Pharma|ET-400 / Khindivi":"2024-07-15","KalVista|Sebetralstat (Ekterly)":"2024-09-03",
+"Savara|Molgramostim (Molbreevi)":"2026-02-20","Lantheus|LNTH-2501":"2025-10-30"
+};
+const ANNOUNCE_DATES={
+"Blueprint|Avapritinib":"2020-02-06","Zogenix|Fintepla":"2020-02-27","Acacia Pharma|BYFAVO (remimazolam)":"2020-03-12",
+"Heron Therapeutics|HTX-011 (Zynrelef)":"2020-02-19","Orphazyme|Arimoclomol":"2020-12-27",
+"Verrica|VP-102 (YCANTH)":"2021-05-28","Incyte|Ruxolitinib cream (Opzelura)":"2021-06-11",
+"Ardelyx|Tenapanor (Xphozah)":"2021-04-29","AbbVie|Upadacitinib (Rinvoq)":"2021-04-02",
+"BioXcel|BXCL501 (Igalmi)":"2021-12-01","Calliditas|Nefecon (Tarpeyo)":"2021-09-14",
+"Biogen/Eisai|Aducanumab (Aduhelm)":"2021-01-29","CTI BioPharma|Pacritinib (Vonjo)":"2021-11-30",
+"Amylyx|AMX0035 (Relyvrio)":"2022-06-02","Biogen|Tofersen (Qalsody)":"2022-10-17",
+"BeiGene|BRUKINSA (zanubrutinib)":"2022-06-13","TG Therapeutics|Ublituximab (Briumvi)":"2022-05-31",
+"Amicus|AT-GAA (Pombiliti)":"2022-05-10","Legend/Janssen|Cilta-cel (Carvykti)":"2021-11-01",
+"Alnylam|Vutrisiran (Amvuttra)":"2022-04-04","Provention Bio|Teplizumab (Tzield)":"2022-06-30",
+"Pfizer|Paxlovid NDA":"2022-12-20","AstraZeneca/Merck|Lynparza+Abiraterone sNDA":"2022-12-15",
+"Bluebird Bio|Zynteglo (beti-cel)":"2022-01-18","Bluebird Bio|Skysona (eli-cel)":"2022-01-18",
+"Krystal Biotech|B-VEC (Vyjuvek)":"2023-01-09","argenx|Vyvgart Hytrulo (SC efgartigimod)":"2023-01-27",
+"SpringWorks|Nirogacestat (Ogsiveo)":"2023-06-05","BeiGene|Tislelizumab (Tevimbra)":"2022-07-14",
+"Iovance|Lifileucel (Amtagvi)":"2023-09-14","ARS Pharma|Neffy":"2023-06-20",
+"Valneva|Ixchiq (VLA1553)":"2023-08-14","Gamida Cell|Omidubicel (Omisirge)":"2022-11-22",
+"BioMarin|Roctavian":"2023-03-06","Sarepta|Elevidys":"2023-05-24",
+"Apellis|Syfovre (pegcetacoplan)":"2022-11-17","Mirum|Livmarli sNDA":"2023-10-17",
+"Rocket Pharma|KRESLADI":"2024-02-13","Merus|Zenocutuzumab (Bizengri)":"2024-11-05",
+"Ascendis|Yorvipath (TransCon PTH)":"2024-05-14","Syndax|Revumenib (Revuforj)":"2024-07-29",
+"Stealth Bio|Elamipretide (Forzinity)":"2025-01-23","Regeneron/Sanofi|Dupixent sBLA":"2024-05-31",
+"Applied Therapeutics|Govorestat":"2024-03-28","Dermavant/Organon|Tapinarof (VTAMA) sNDA":"2024-11-05",
+"Amgen|Sotorasib+Panitumumab":"2024-10-17","Intercept|Ocaliva sNDA":"2024-10-17",
+"Aldeyra|Reproxalap":"2025-12-15","Soleno|DCCR / VYKAT XR":"2024-11-26",
+"Cytokinetics|Aficamten (Myqorzo)":"2025-05-01","Denali|Tividenofusp alfa (Avlayah)":"2025-10-13",
+"Ascendis|Navepegritide (Yuviwel)":"2025-11-25","Rhythm Pharma|IMCIVREE sNDA":"2025-11-07",
+"GSK|Blenrep (belantamab mafodotin)":"2025-07-23","Agios|Mitapivat (Aqvesme) sNDA":"2025-09-04",
+"Sanofi|Tolebrutinib":"2025-09-22","Eton Pharma|ET-400 / Khindivi":"2025-02-06",
+"KalVista|Sebetralstat (Ekterly)":"2025-06-13","Savara|Molgramostim (Molbreevi)":"2026-04-15",
+"Lantheus|LNTH-2501":"2026-03-17"
+};
+// Augment DATA with computed fields
+function daysBetween(d1,d2){return Math.round((new Date(d2)-new Date(d1))/(1000*60*60*24))}
+DATA.forEach(d=>{
+  const key=d.company+'|'+d.drug;
+  d.acceptDate=ACCEPT_DATES[key]||null;
+  const ann=ANNOUNCE_DATES[key]||null;
+  d.announceDate=ann;
+  d.daysFromAcceptance=(d.acceptDate&&ann)?daysBetween(d.acceptDate,ann):null;
+});
 
 // Filter state
 const filters={reason:new Set(),orphan:new Set(),review:new Set(),accel:new Set(),apptype:new Set(),breakthrough:new Set(),firstclass:new Set(),adcom:new Set(),division:new Set(),year:new Set()};
@@ -411,18 +491,25 @@ function updateTiming(approved,failed){
   const aMed=aDays.length?median(aDays):0;
   const fMed=fDays.length?median(fDays):0;
 
-  document.getElementById('t-avg-approved').textContent=aDays.length?aAvg+' days':'N/A';
-  document.getElementById('t-avg-failed').textContent=fDays.length?fAvg+' days':'N/A';
-
+  document.getElementById('t-avg-approved').textContent=aDays.length?aAvg+'d':'N/A';
+  document.getElementById('t-avg-failed').textContent=fDays.length?fAvg+'d':'N/A';
+  const aAcc=approved.filter(d=>d.daysFromAcceptance!==null).map(d=>d.daysFromAcceptance);
+  const fAcc=failed.filter(d=>d.daysFromAcceptance!==null).map(d=>d.daysFromAcceptance);
+  const aAccAvg=aAcc.length?Math.round(aAcc.reduce((a,b)=>a+b,0)/aAcc.length):0;
+  const fAccAvg=fAcc.length?Math.round(fAcc.reduce((a,b)=>a+b,0)/fAcc.length):0;
+  const aAccMed=aAcc.length?median(aAcc):0;
+  const fAccMed=fAcc.length?median(fAcc):0;
+  document.getElementById('t-acc-approved').textContent=aAcc.length?aAccAvg+'d':'N/A';
+  document.getElementById('t-acc-failed').textContent=fAcc.length?fAccAvg+'d':'N/A';
   let insight='';
   if(aDays.length&&fDays.length){
-    if(fAvg>aAvg) insight=`<strong>Observation:</strong> CRL cases had extensions announced on average ${fAvg-aAvg} days earlier (${fAvg}d vs ${aAvg}d). Median: ${fMed}d (CRL) vs ${aMed}d (Approved). Very early announcements (>100d) may signal deeper review concerns. However, timing alone is a weak predictor — extension reason and designations are far more informative.`;
-    else insight=`<strong>Observation:</strong> Approved cases had extensions announced on average ${aAvg-fAvg} days earlier (${aAvg}d vs ${fAvg}d). Median: ${aMed}d (Approved) vs ${fMed}d (CRL). Timing of announcement does not appear to strongly predict outcome in this dataset.`;
+    insight=`<strong>Before PDUFA:</strong> Approved avg ${aAvg}d (med ${aMed}d) vs CRL avg ${fAvg}d (med ${fMed}d). <strong>Post-Accept:</strong> Approved avg ${aAccAvg}d (med ${aAccMed}d) vs CRL avg ${fAccAvg}d (med ${fAccMed}d). `;
+    const accDiff=Math.abs(fAccAvg-aAccAvg);
+    if(accDiff>20) insight+=`Extensions announced later in the review cycle (${Math.max(aAccAvg,fAccAvg)}d for ${fAccAvg>aAccAvg?'CRL':'approved'}) may carry slightly different signal.`;
+    else insight+=`Timing alone is a weak predictor — extension reason and designations are far more informative.`;
   } else if(aDays.length){
-    insight=`<strong>Note:</strong> Average announcement lead time for approved cases: ${aAvg} days (median: ${aMed}d). No CRL cases in current filter to compare.`;
-  } else {
-    insight='Insufficient data for timing analysis in current filter selection.';
-  }
+    insight=`<strong>Note:</strong> Approved: avg ${aAvg}d before PDUFA, ${aAccAvg}d post-acceptance. No CRL cases to compare.`;
+  } else { insight='Insufficient data in current filter.'; }
   document.getElementById('timing-insight').innerHTML=insight;
 }
 
@@ -432,7 +519,7 @@ function updateTable(filtered){
   const tbody=document.getElementById('case-table');
   document.getElementById('table-count').textContent=filtered.length+' cases';
   if(sortCol>=0){
-    const keys=['company','drug','indication','year','reason','reasonDetail','daysNotice','orphan','review','appType','breakthrough','division','status'];
+    const keys=['company','drug','indication','year','reason','reasonDetail','daysNotice','daysFromAcceptance','orphan','review','appType','breakthrough','division','status'];
     filtered.sort((a,b)=>{
       let va=a[keys[sortCol]],vb=b[keys[sortCol]];
       if(va===null)va=-999;if(vb===null)vb=-999;
@@ -443,7 +530,8 @@ function updateTable(filtered){
   tbody.innerHTML=filtered.map(d=>{
     const sc=d.status==='Approved'?'approved':d.status==='Failed'?'failed':d.status==='Pending'?'pending':'mixed';
     const dn=d.daysNotice!==null?d.daysNotice:'N/A';
-    return `<tr title="${d.notes}"><td>${d.company}</td><td>${d.drug}</td><td>${d.indication}</td><td>${d.year}</td><td>${d.reason}</td><td style="max-width:300px;font-size:0.7rem;color:var(--text2)">${d.reasonDetail||''}</td><td>${dn}</td><td>${d.orphan}</td><td>${d.review}</td><td>${d.appType}</td><td>${d.breakthrough}</td><td>${d.division}</td><td><span class="status-pill ${sc}">${d.status}</span></td></tr>`;
+    const dfa=d.daysFromAcceptance!==null?d.daysFromAcceptance:'N/A';
+    return `<tr title="${d.notes}"><td>${d.company}</td><td>${d.drug}</td><td>${d.indication}</td><td>${d.year}</td><td>${d.reason}</td><td style="max-width:300px;font-size:0.7rem;color:var(--text2)">${d.reasonDetail||''}</td><td>${dn}</td><td>${dfa}</td><td>${d.orphan}</td><td>${d.review}</td><td>${d.appType}</td><td>${d.breakthrough}</td><td>${d.division}</td><td><span class="status-pill ${sc}">${d.status}</span></td></tr>`;
   }).join('');
 }
 
