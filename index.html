@@ -157,14 +157,23 @@ tr:hover td{background:#1a223644}
     </div>
     <div class="chart-card scatter-card">
       <h3>Announcement Timing vs. Outcome</h3>
-      <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
-      <div class="timing-stats">
-        <div class="timing-stat"><div class="val green" id="t-avg-approved">—</div><div class="lbl">Avg Days Before PDUFA (Approved)</div></div>
-        <div class="timing-stat"><div class="val red" id="t-avg-failed">—</div><div class="lbl">Avg Days Before PDUFA (CRL)</div></div>
-      </div>
-      <div class="timing-stats" style="margin-top:8px">
-        <div class="timing-stat"><div class="val green" id="t-acc-approved">—</div><div class="lbl">Avg Days Post-Accept (Approved)</div></div>
-        <div class="timing-stat"><div class="val red" id="t-acc-failed">—</div><div class="lbl">Avg Days Post-Accept (CRL)</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <div style="font-size:0.7rem;color:var(--text2);margin-bottom:6px;text-align:center">Days Notice BEFORE Original PDUFA</div>
+          <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
+          <div class="timing-stats" style="margin-top:8px">
+            <div class="timing-stat"><div class="val green" id="t-avg-approved">—</div><div class="lbl">Approved Avg</div></div>
+            <div class="timing-stat"><div class="val red" id="t-avg-failed">—</div><div class="lbl">CRL Avg</div></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:0.7rem;color:var(--text2);margin-bottom:6px;text-align:center">Days AFTER NDA/BLA Acceptance</div>
+          <div class="chart-wrap"><canvas id="scatterChart2"></canvas></div>
+          <div class="timing-stats" style="margin-top:8px">
+            <div class="timing-stat"><div class="val green" id="t-acc-approved">—</div><div class="lbl">Approved Avg</div></div>
+            <div class="timing-stat"><div class="val red" id="t-acc-failed">—</div><div class="lbl">CRL Avg</div></div>
+          </div>
+        </div>
       </div>
       <div class="insight-box" id="timing-insight"></div>
     </div>
@@ -373,7 +382,7 @@ const filterOptions={
   year:["2020","2021","2022","2023","2024","2025","2026"]
 };
 
-let donutChart,scatterChart;
+let donutChart,scatterChart,scatterChart2;
 let sortCol=-1,sortDir=1;
 
 function init(){
@@ -458,8 +467,11 @@ function initCharts(){
   const dctx=document.getElementById('donutChart').getContext('2d');
   donutChart=new Chart(dctx,{type:'doughnut',data:{labels:['Approved','CRL/Failed'],datasets:[{data:[0,0],backgroundColor:['#22c55e','#ef4444'],borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:true,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#94a3b8',font:{size:11},padding:12}}}}});
 
+  const scatterOpts={responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:'#94a3b8',font:{size:10}},grid:{color:'#1a223688'}},y:{display:false,min:-1,max:2}},plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{size:10},usePointStyle:true,pointStyle:'circle',boxWidth:8}},tooltip:{callbacks:{label:function(ctx){const d=ctx.raw;return d.label+' ('+d.x+'d)'}}}}};
   const sctx=document.getElementById('scatterChart').getContext('2d');
-  scatterChart=new Chart(sctx,{type:'scatter',data:{datasets:[]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'Days Notice Before Original PDUFA',color:'#94a3b8',font:{size:11}},ticks:{color:'#94a3b8'},grid:{color:'#1a223688'}},y:{display:false,min:-1,max:2}},plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{size:10},usePointStyle:true,pointStyle:'circle'}},tooltip:{callbacks:{label:function(ctx){const d=ctx.raw;return d.label+' ('+d.x+' days)'}}}}}});
+  scatterChart=new Chart(sctx,{type:'scatter',data:{datasets:[]},options:scatterOpts});
+  const sctx2=document.getElementById('scatterChart2').getContext('2d');
+  scatterChart2=new Chart(sctx2,{type:'scatter',data:{datasets:[]},options:scatterOpts});
 }
 
 function updateDonut(a,f){
@@ -469,17 +481,29 @@ function updateDonut(a,f){
 }
 
 function updateScatter(filtered){
-  const approved=[],failed=[];
+  const approved=[],failed=[],approved2=[],failed2=[];
   filtered.forEach(d=>{
-    if(d.daysNotice===null||d.status==='Pending'||d.status==='Mixed') return;
-    const pt={x:d.daysNotice,y:0.5+Math.random()*0.8-0.4,label:d.company+' / '+d.drug};
-    if(d.status==='Approved') approved.push(pt);
-    else failed.push(pt);
+    if(d.status==='Pending'||d.status==='Mixed') return;
+    const y=0.5+Math.random()*0.8-0.4;
+    const label=d.company+' / '+d.drug;
+    if(d.daysNotice!==null){
+      const pt={x:d.daysNotice,y,label};
+      if(d.status==='Approved') approved.push(pt); else failed.push(pt);
+    }
+    if(d.daysFromAcceptance!==null){
+      const pt2={x:d.daysFromAcceptance,y,label};
+      if(d.status==='Approved') approved2.push(pt2); else failed2.push(pt2);
+    }
   });
   scatterChart.data.datasets=[
     {label:'Approved',data:approved,backgroundColor:'#22c55eaa',pointRadius:6,pointHoverRadius:9},
     {label:'CRL/Failed',data:failed,backgroundColor:'#ef4444aa',pointRadius:6,pointHoverRadius:9}
   ];
+  scatterChart2.data.datasets=[
+    {label:'Approved',data:approved2,backgroundColor:'#22c55eaa',pointRadius:6,pointHoverRadius:9},
+    {label:'CRL/Failed',data:failed2,backgroundColor:'#ef4444aa',pointRadius:6,pointHoverRadius:9}
+  ];
+  scatterChart2.update();
   scatterChart.update();
 }
 
