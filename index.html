@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDUFA Extension Outcome Analyzer | Savara (SVRA) Context</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0a0e17;--surface:#111827;--surface2:#1a2236;--border:#2a3452;--text:#e2e8f0;--text2:#94a3b8;--accent:#3b82f6;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--purple:#a78bfa;--teal:#2dd4bf}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.5;overflow-x:hidden}
+.layout{display:grid;grid-template-columns:320px 1fr;height:100vh;overflow:hidden}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px;overflow-y:auto;height:100vh}
+.main{padding:24px 32px;overflow-y:auto;height:100vh}
+h1{font-size:1.5rem;font-weight:700;letter-spacing:-0.02em}
+h2{font-size:1.1rem;font-weight:600;margin-bottom:12px;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;font-size:0.75rem}
+h3{font-size:0.95rem;font-weight:600;margin-bottom:8px}
+.savara-banner{background:linear-gradient(135deg,#1e3a5f,#1a2744);border:1px solid #2563eb44;border-radius:10px;padding:16px 20px;margin-bottom:24px}
+.savara-banner .title{color:var(--accent);font-weight:700;font-size:1.1rem;margin-bottom:6px}
+.savara-banner .tags{display:flex;gap:6px;flex-wrap:wrap}
+.savara-banner .tag{background:#2563eb22;color:var(--accent);padding:2px 8px;border-radius:4px;font-size:0.7rem;font-weight:600;border:1px solid #2563eb44}
+.filter-group{margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:14px}
+.filter-group-title{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text2);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.filter-group-title .select-btns{display:flex;gap:4px}
+.filter-group-title .select-btns button{background:none;border:none;color:var(--accent);font-size:0.6rem;cursor:pointer;text-decoration:underline;font-family:inherit}
+.toggle-grid{display:flex;flex-wrap:wrap;gap:5px}
+.toggle-btn{padding:4px 10px;border-radius:5px;border:1px solid var(--border);background:var(--surface2);color:var(--text2);font-size:0.72rem;cursor:pointer;transition:all .15s;font-family:inherit;font-weight:500}
+.toggle-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.toggle-btn:hover{border-color:var(--accent)}
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;text-align:center}
+.stat-card .value{font-size:2.2rem;font-weight:800;letter-spacing:-0.03em}
+.stat-card .label{font-size:0.7rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em;margin-top:2px}
+.stat-card.highlight{border-color:var(--accent);background:linear-gradient(135deg,#1e293b,#172040)}
+.stat-card .value.green{color:var(--green)}
+.stat-card .value.red{color:var(--red)}
+.stat-card .value.blue{color:var(--accent)}
+.charts-row{display:grid;grid-template-columns:280px 1fr;gap:20px;margin-bottom:24px;grid-template-rows:auto}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;min-height:0}
+.chart-card.scatter-card{display:flex;flex-direction:column}
+.chart-card.scatter-card .chart-wrap{position:relative;height:220px;flex-shrink:0}
+.chart-card h3{color:var(--text2);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:12px}
+.timing-stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+.timing-stat{background:var(--surface2);border-radius:8px;padding:12px;text-align:center}
+.timing-stat .val{font-size:1.4rem;font-weight:700}
+.timing-stat .lbl{font-size:0.65rem;color:var(--text2);text-transform:uppercase}
+.insight-box{background:#1a2236;border-left:3px solid var(--amber);padding:12px 16px;border-radius:0 8px 8px 0;margin-top:14px;font-size:0.8rem;color:var(--text2)}
+.insight-box strong{color:var(--amber)}
+.table-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:24px}
+.table-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.table-scroll{max-height:500px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:0.78rem}
+thead{position:sticky;top:0;z-index:1}
+th{background:var(--surface2);padding:10px 12px;text-align:left;font-weight:600;color:var(--text2);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.04em;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--border)}
+th:hover{color:var(--accent)}
+td{padding:8px 12px;border-bottom:1px solid #1a2236;vertical-align:top}
+tr:hover td{background:#1a223644}
+.status-pill{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.68rem;font-weight:600}
+.status-pill.approved{background:#22c55e22;color:var(--green)}
+.status-pill.failed{background:#ef444422;color:var(--red)}
+.status-pill.pending{background:#f59e0b22;color:var(--amber)}
+.status-pill.mixed{background:#a78bfa22;color:var(--purple)}
+.comparables-card{background:linear-gradient(135deg,#0f172a,#1a2744);border:1px solid #2563eb44;border-radius:10px;padding:24px;margin-bottom:24px}
+.comparables-card h3{color:var(--accent);margin-bottom:4px;font-size:1rem}
+.comparables-card .sub{color:var(--text2);font-size:0.78rem;margin-bottom:16px}
+.comp-stat-row{display:flex;gap:16px;margin-bottom:16px}
+.comp-stat{background:#1e3a5f44;border-radius:8px;padding:14px 18px;text-align:center;flex:1;border:1px solid #2563eb33}
+.comp-stat .val{font-size:1.8rem;font-weight:800;color:var(--accent)}
+.comp-stat .lbl{font-size:0.65rem;color:var(--text2);text-transform:uppercase}
+.comp-list{font-size:0.78rem;color:var(--text2)}
+.comp-list .item{padding:6px 0;border-bottom:1px solid #2a345244;display:flex;justify-content:space-between}
+.comp-list .item .name{color:var(--text)}
+.reset-btn{background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:0.75rem;font-weight:600;font-family:inherit;width:100%;margin-top:8px}
+.reset-btn:hover{background:#2563eb}
+.footer-note{text-align:center;color:var(--text2);font-size:0.7rem;padding:20px;border-top:1px solid var(--border);margin-top:20px}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <h1 style="margin-bottom:4px">PDUFA Extension Analyzer</h1>
+  <p style="font-size:0.75rem;color:var(--text2);margin-bottom:16px">61 cases | 2020-2026 | Savara (SVRA) context</p>
+  <button class="reset-btn" onclick="resetAll()">Reset All Filters</button>
+  <div style="height:16px"></div>
+
+  <div class="filter-group" id="fg-reason">
+    <div class="filter-group-title">Extension Reason <span class="select-btns"><button onclick="selectAll('reason')">All</button><button onclick="selectNone('reason')">None</button></span></div>
+    <div class="toggle-grid" data-group="reason"></div>
+  </div>
+  <div class="filter-group" id="fg-orphan">
+    <div class="filter-group-title">Orphan Drug <span class="select-btns"><button onclick="selectAll('orphan')">All</button><button onclick="selectNone('orphan')">None</button></span></div>
+    <div class="toggle-grid" data-group="orphan"></div>
+  </div>
+  <div class="filter-group" id="fg-review">
+    <div class="filter-group-title">Review Type <span class="select-btns"><button onclick="selectAll('review')">All</button><button onclick="selectNone('review')">None</button></span></div>
+    <div class="toggle-grid" data-group="review"></div>
+  </div>
+  <div class="filter-group" id="fg-accel">
+    <div class="filter-group-title">Accelerated Approval <span class="select-btns"><button onclick="selectAll('accel')">All</button><button onclick="selectNone('accel')">None</button></span></div>
+    <div class="toggle-grid" data-group="accel"></div>
+  </div>
+  <div class="filter-group" id="fg-apptype">
+    <div class="filter-group-title">Application Type <span class="select-btns"><button onclick="selectAll('apptype')">All</button><button onclick="selectNone('apptype')">None</button></span></div>
+    <div class="toggle-grid" data-group="apptype"></div>
+  </div>
+  <div class="filter-group" id="fg-breakthrough">
+    <div class="filter-group-title">Breakthrough Therapy <span class="select-btns"><button onclick="selectAll('breakthrough')">All</button><button onclick="selectNone('breakthrough')">None</button></span></div>
+    <div class="toggle-grid" data-group="breakthrough"></div>
+  </div>
+  <div class="filter-group" id="fg-firstclass">
+    <div class="filter-group-title">First-in-Class <span class="select-btns"><button onclick="selectAll('firstclass')">All</button><button onclick="selectNone('firstclass')">None</button></span></div>
+    <div class="toggle-grid" data-group="firstclass"></div>
+  </div>
+  <div class="filter-group" id="fg-adcom">
+    <div class="filter-group-title">Advisory Committee <span class="select-btns"><button onclick="selectAll('adcom')">All</button><button onclick="selectNone('adcom')">None</button></span></div>
+    <div class="toggle-grid" data-group="adcom"></div>
+  </div>
+  <div class="filter-group" id="fg-division">
+    <div class="filter-group-title">FDA Review Division <span class="select-btns"><button onclick="selectAll('division')">All</button><button onclick="selectNone('division')">None</button></span></div>
+    <div class="toggle-grid" data-group="division"></div>
+  </div>
+  <div class="filter-group" id="fg-year" style="border-bottom:none">
+    <div class="filter-group-title">Year <span class="select-btns"><button onclick="selectAll('year')">All</button><button onclick="selectNone('year')">None</button></span></div>
+    <div class="toggle-grid" data-group="year"></div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="savara-banner">
+    <div class="title">Savara (SVRA) — Molbreevi (Molgramostim) — Autoimmune PAP</div>
+    <div class="tags">
+      <span class="tag">BLA</span>
+      <span class="tag">Priority Review</span>
+      <span class="tag">Orphan Drug (Oct 2012)</span>
+      <span class="tag">Breakthrough Therapy (Dec 2019)</span>
+      <span class="tag">Fast Track</span>
+      <span class="tag">No AdCom Planned</span>
+      <span class="tag">First-in-Class</span>
+      <span class="tag">PDUFA: Aug 22, 2026</span>
+      <span class="tag">CDER: Pulmonary/Allergy</span>
+      <span class="tag">Initial RTF was CMC (resolved)</span>
+    </div>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-card highlight"><div class="value blue" id="s-rate">—</div><div class="label">Approval Rate</div></div>
+    <div class="stat-card"><div class="value green" id="s-approved">—</div><div class="label">Approved</div></div>
+    <div class="stat-card"><div class="value red" id="s-failed">—</div><div class="label">CRL / Failed</div></div>
+    <div class="stat-card"><div class="value" id="s-total" style="color:var(--text2)">—</div><div class="label">Filtered Cases</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-card" style="display:flex;flex-direction:column;align-items:center">
+      <h3 style="align-self:flex-start">Outcome Distribution</h3>
+      <div style="position:relative;width:220px;height:220px"><canvas id="donutChart"></canvas></div>
+    </div>
+    <div class="chart-card scatter-card">
+      <h3>Announcement Timing vs. Outcome</h3>
+      <div class="chart-wrap"><canvas id="scatterChart"></canvas></div>
+      <div class="timing-stats">
+        <div class="timing-stat"><div class="val green" id="t-avg-approved">—</div><div class="lbl">Avg Days (Approved)</div></div>
+        <div class="timing-stat"><div class="val red" id="t-avg-failed">—</div><div class="lbl">Avg Days (CRL)</div></div>
+      </div>
+      <div class="insight-box" id="timing-insight"></div>
+    </div>
+  </div>
+
+  <div class="comparables-card">
+    <h3>Savara-Like Comparables</h3>
+    <div class="sub">Cases matching: Orphan Drug + BLA + Priority Review + Breakthrough Therapy + No AdCom</div>
+    <div class="comp-stat-row">
+      <div class="comp-stat"><div class="val" id="comp-rate">—</div><div class="lbl">Approval Rate</div></div>
+      <div class="comp-stat"><div class="val" id="comp-count">—</div><div class="lbl">Matching Cases</div></div>
+      <div class="comp-stat"><div class="val" id="comp-approved">—</div><div class="lbl">Approved</div></div>
+      <div class="comp-stat"><div class="val" id="comp-failed">—</div><div class="lbl">Failed</div></div>
+    </div>
+    <div class="comp-list" id="comp-list"></div>
+  </div>
+
+  <div class="table-section">
+    <div class="table-header">
+      <h3>Filtered Cases</h3>
+      <span style="font-size:0.72rem;color:var(--text2)" id="table-count"></span>
+    </div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th onclick="sortTable(0)">Company</th>
+          <th onclick="sortTable(1)">Drug</th>
+          <th onclick="sortTable(2)">Indication</th>
+          <th onclick="sortTable(3)">Year</th>
+          <th onclick="sortTable(4)">Reason</th>
+          <th onclick="sortTable(5)">Days Notice</th>
+          <th onclick="sortTable(6)">Orphan</th>
+          <th onclick="sortTable(7)">Review</th>
+          <th onclick="sortTable(8)">App Type</th>
+          <th onclick="sortTable(9)">BTD</th>
+          <th onclick="sortTable(10)">Division</th>
+          <th onclick="sortTable(11)">Outcome</th>
+        </tr></thead>
+        <tbody id="case-table"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    PDUFA Extension Outcome Analysis (2020-2026) | 61 cases identified | Data as of April 2026<br>
+    Prepared for Savara (SVRA) investment analysis | Rosalind Advisors
+  </div>
+</main>
+</div>
+
+<script>
+const DATA=[
+{company:"Blueprint",drug:"Avapritinib",indication:"GIST (4L)",year:2020,origPdufa:"2020-02-14",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Oncology/Hematology",daysNotice:8,status:"Failed",outcome:"CRL May 2020 (4L GIST)",notes:"PDUFA extension was for 4L GIST NDA which got CRL after VOYAGER Phase 3 failure; PDGFRA exon 18 was a separate NDA approved Jan 2020"},
+{company:"Zogenix",drug:"Fintepla",indication:"Dravet Syndrome",year:2020,origPdufa:"2020-03-25",reason:"Major Amendment (Other)",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Neurology",daysNotice:27,status:"Approved",outcome:"Approved Jun 2020",notes:"REMS required; Schedule IV"},
+{company:"Acacia Pharma",drug:"BYFAVO (remimazolam)",indication:"Procedural Sedation",year:2020,origPdufa:"2020-04-05",reason:"CMC/Manufacturing",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Other CDER",daysNotice:24,status:"Approved",outcome:"Approved Jul 2020",notes:"Ultra-short-acting benzodiazepine"},
+{company:"Heron Therapeutics",drug:"HTX-011 (Zynrelef)",indication:"Post-op Pain",year:2020,origPdufa:"2020-03-26",reason:"CMC/Manufacturing",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Other CDER",daysNotice:36,status:"Failed",outcome:"CRL Jun 2020",notes:"2 CRLs before approval May 2021"},
+{company:"Orphazyme",drug:"Arimoclomol",indication:"NPC",year:2020,origPdufa:"2021-03-17",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"Neurology",daysNotice:80,status:"Failed",outcome:"CRL Jun 2021",notes:"Heat shock protein amplifier; RPDD"},
+{company:"Verrica",drug:"VP-102 (YCANTH)",indication:"Molluscum",year:2021,origPdufa:"2021-06-23",reason:"Labeling/Post-Marketing",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"Dermatology/Ophthalmology",daysNotice:26,status:"Failed",outcome:"CRL Sep 2021",notes:"CMC deficiency at manufacturer; eventually approved Jul 2023"},
+{company:"Incyte",drug:"Ruxolitinib cream (Opzelura)",indication:"Atopic Dermatitis",year:2021,origPdufa:"2021-06-21",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"Dermatology/Ophthalmology",daysNotice:10,status:"Approved",outcome:"Approved Sep 2021",notes:"First topical JAK inhibitor"},
+{company:"Ardelyx",drug:"Tenapanor (Xphozah)",indication:"CKD Hyperphosphatemia",year:2021,origPdufa:"2021-04-29",reason:"Labeling/Post-Marketing",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"Cardio-Renal",daysNotice:0,status:"Failed",outcome:"CRL Jul 2021",notes:"First-in-class NHE3 inhibitor; AdCom held in later resubmission cycle (not this extension); approved Oct 2023 after dispute"},
+{company:"AbbVie",drug:"Upadacitinib (Rinvoq)",indication:"Atopic Dermatitis",year:2021,origPdufa:"2021-06-01",reason:"Clinical Data",orphan:"No",review:"Standard",accel:"No",appType:"sNDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Dermatology/Ophthalmology",daysNotice:60,status:"Approved",outcome:"Approved Jan 2022",notes:"JAK class-wide safety review caused extraordinary delay"},
+{company:"BioXcel",drug:"BXCL501 (Igalmi)",indication:"Agitation/Schizophrenia",year:2021,origPdufa:"2022-01-05",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Other CDER",daysNotice:35,status:"Approved",outcome:"Approved Apr 2022",notes:"First sublingual dexmedetomidine"},
+{company:"Calliditas",drug:"Nefecon (Tarpeyo)",indication:"IgA Nephropathy",year:2021,origPdufa:"2021-09-15",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"Cardio-Renal",daysNotice:1,status:"Approved",outcome:"Approved Dec 2021 (accelerated)",notes:"First approved IgA nephropathy treatment; Priority Review confirmed; proteinuria surrogate"},
+{company:"Biogen/Eisai",drug:"Aducanumab (Aduhelm)",indication:"Alzheimer's",year:2021,origPdufa:"2021-03-07",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"Yes",division:"Neurology",daysNotice:37,status:"Approved",outcome:"Approved Jun 2021 (accelerated)",notes:"Approved over 0-10 negative AdCom; withdrawn Jan 2024"},
+{company:"CTI BioPharma",drug:"Pacritinib (Vonjo)",indication:"Myelofibrosis",year:2021,origPdufa:"2021-11-30",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Oncology/Hematology",daysNotice:0,status:"Approved",outcome:"Approved Feb 2022 (accelerated)",notes:"First JAK inhibitor for MF with platelets <50k"},
+{company:"Amylyx",drug:"AMX0035 (Relyvrio)",indication:"ALS",year:2022,origPdufa:"2022-06-29",reason:"Clinical Data",orphan:"Yes",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"Yes",division:"Neurology",daysNotice:27,status:"Approved",outcome:"Approved Sep 2022; Withdrawn 2024",notes:"Two AdCom meetings; withdrawn after PHOENIX failure"},
+{company:"Biogen",drug:"Tofersen (Qalsody)",indication:"SOD1-ALS",year:2022,origPdufa:"2023-01-25",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"NDA",breakthrough:"Yes",firstClass:"Yes",adcom:"Yes",division:"Neurology",daysNotice:100,status:"Approved",outcome:"Approved Apr 2023 (accelerated)",notes:"First genetic ALS therapy; ASO; NfL surrogate"},
+{company:"BeiGene",drug:"BRUKINSA (zanubrutinib)",indication:"CLL/SLL",year:2022,origPdufa:"2022-10-22",reason:"Clinical Data",orphan:"Yes",review:"Standard",accel:"No",appType:"sNDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Oncology/Hematology",daysNotice:131,status:"Approved",outcome:"Approved Jan 2023",notes:"First BTK inhibitor superior to ibrutinib"},
+{company:"TG Therapeutics",drug:"Ublituximab (Briumvi)",indication:"RMS",year:2022,origPdufa:"2022-09-28",reason:"Major Amendment (Other)",orphan:"No",review:"Standard",accel:"No",appType:"BLA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Neurology",daysNotice:120,status:"Approved",outcome:"Approved Dec 2022",notes:"First anti-CD20 with 1-hour infusion for RMS"},
+{company:"Amicus",drug:"AT-GAA (Pombiliti)",indication:"Pompe Disease",year:2022,origPdufa:"2022-07-29",reason:"CMC/Manufacturing",orphan:"Yes",review:"Standard",accel:"No",appType:"BLA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"Metabolic/Endocrine",daysNotice:80,status:"Approved",outcome:"Approved Sep 2023",notes:"Two-component therapy; WuXi inspection delay"},
+{company:"Legend/Janssen",drug:"Cilta-cel (Carvykti)",indication:"Multiple Myeloma",year:2022,origPdufa:"2021-11-29",reason:"CMC/Manufacturing",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:28,status:"Approved",outcome:"Approved Feb 2022",notes:"BCMA CAR-T; updated analytical method review"},
+{company:"Alnylam",drug:"Vutrisiran (Amvuttra)",indication:"Hereditary ATTR",year:2022,origPdufa:"2022-04-14",reason:"Facility Inspection",orphan:"Yes",review:"Standard",accel:"No",appType:"NDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Neurology",daysNotice:10,status:"Approved",outcome:"Approved Jun 2022",notes:"RNAi therapeutic; SC Q3months"},
+{company:"Provention Bio",drug:"Teplizumab (Tzield)",indication:"T1D Delay",year:2022,origPdufa:"2022-08-17",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"Yes",division:"Metabolic/Endocrine",daysNotice:48,status:"Approved",outcome:"Approved Nov 2022",notes:"First drug to delay T1D; anti-CD3 mAb"},
+{company:"Pfizer",drug:"Paxlovid NDA",indication:"COVID-19",year:2022,origPdufa:"2023-02-15",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"Yes",division:"Other CDER",daysNotice:67,status:"Approved",outcome:"Approved May 2023",notes:"Already under EUA; AMDAC 16-1 favorable"},
+{company:"AstraZeneca/Merck",drug:"Lynparza+Abiraterone sNDA",indication:"mCRPC",year:2022,origPdufa:"2022-12-15",reason:"Major Amendment (Other)",orphan:"No",review:"Priority",accel:"No",appType:"sNDA",breakthrough:"No",firstClass:"No",adcom:"Yes",division:"Oncology/Hematology",daysNotice:0,status:"Approved",outcome:"Approved May 2023 (narrow label)",notes:"ODAC 11-1 to restrict to BRCA-mutant only"},
+{company:"Bluebird Bio",drug:"Zynteglo (beti-cel)",indication:"Beta-Thalassemia",year:2022,origPdufa:"2022-05-20",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"Yes",division:"CBER (Cell/Gene)",daysNotice:122,status:"Approved",outcome:"Approved Aug 2022",notes:"First gene therapy for beta-thal; $2.8M; RPDD"},
+{company:"Bluebird Bio",drug:"Skysona (eli-cel)",indication:"CALD",year:2022,origPdufa:"2022-06-17",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"Yes",division:"CBER (Cell/Gene)",daysNotice:150,status:"Approved",outcome:"Approved Sep 2022 (accelerated)",notes:"Lentiviral gene therapy; ~$3M; clinical hold lifted during review; RPDD"},
+{company:"Krystal Biotech",drug:"B-VEC (Vyjuvek)",indication:"DEB",year:2023,origPdufa:"2023-02-17",reason:"CMC/Manufacturing",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Unknown",firstClass:"Yes",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:39,status:"Approved",outcome:"Approved May 2023",notes:"First redosable gene therapy; first topical gene therapy; RPDD PRV"},
+{company:"argenx",drug:"Vyvgart Hytrulo (SC efgartigimod)",indication:"gMG",year:2023,origPdufa:"2023-03-20",reason:"Major Amendment (Other)",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Neurology",daysNotice:52,status:"Approved",outcome:"Approved Jun 2023",notes:"SC formulation; Halozyme ENHANZE"},
+{company:"SpringWorks",drug:"Nirogacestat (Ogsiveo)",indication:"Desmoid Tumors",year:2023,origPdufa:"2023-08-27",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Oncology/Hematology",daysNotice:83,status:"Approved",outcome:"Approved Nov 2023",notes:"First-in-class gamma-secretase inhibitor; first desmoid tumor drug; RTOR"},
+{company:"BeiGene",drug:"Tislelizumab (Tevimbra)",indication:"ESCC",year:2023,origPdufa:"2022-07-12",reason:"Facility Inspection",orphan:"No",review:"Standard",accel:"No",appType:"BLA",breakthrough:"No",firstClass:"No",adcom:"Yes",division:"Oncology/Hematology",daysNotice:-2,status:"Approved",outcome:"Approved Mar 2024",notes:"COVID inspection deferral; China facilities; atypical"},
+{company:"Iovance",drug:"Lifileucel (Amtagvi)",indication:"Melanoma",year:2023,origPdufa:"2023-11-25",reason:"FDA Resource Constraints",orphan:"Yes",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:72,status:"Approved",outcome:"Approved Feb 2024 (accelerated)",notes:"First TIL therapy; first cell therapy for solid tumor; RMAT"},
+{company:"ARS Pharma",drug:"Neffy",indication:"Anaphylaxis",year:2023,origPdufa:"2023-06-19",reason:"Labeling/Post-Marketing",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"Yes",division:"Pulmonary/Allergy",daysNotice:-1,status:"Failed",outcome:"CRL Sep 2023",notes:"CRL despite positive AdCom (16-6); approved on resub 2024"},
+{company:"Valneva",drug:"Ixchiq (VLA1553)",indication:"Chikungunya",year:2023,origPdufa:"2023-08-31",reason:"Labeling/Post-Marketing",orphan:"No",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"CBER (Vaccines)",daysNotice:17,status:"Approved",outcome:"Approved Nov 2023 (accelerated)",notes:"First chikungunya vaccine globally; Tropical Disease PRV"},
+{company:"Gamida Cell",drug:"Omidubicel (Omisirge)",indication:"HSCT",year:2023,origPdufa:"2023-01-30",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:69,status:"Approved",outcome:"Approved Apr 2023",notes:"NAM expansion; first allogeneic cell therapy for HSCT on Phase 3"},
+{company:"BioMarin",drug:"Roctavian",indication:"Hemophilia A",year:2023,origPdufa:"2023-03-31",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:25,status:"Approved",outcome:"Approved Jun 2023",notes:"First gene therapy for hemophilia A; RMAT; largest Phase 3 gene therapy study"},
+{company:"Sarepta",drug:"Elevidys",indication:"DMD",year:2023,origPdufa:"2023-05-29",reason:"AdCom Follow-up",orphan:"Yes",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"No",firstClass:"Yes",adcom:"Yes",division:"CBER (Cell/Gene)",daysNotice:5,status:"Approved",outcome:"Approved Jun 2023 (accelerated)",notes:"First gene therapy for DMD; tight 8-6 AdCom; RMAT"},
+{company:"Apellis",drug:"Syfovre (pegcetacoplan)",indication:"Geographic Atrophy",year:2023,origPdufa:"2022-11-26",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Dermatology/Ophthalmology",daysNotice:9,status:"Approved",outcome:"Approved Feb 2023",notes:"First-ever GA treatment; company proactively submitted 24-mo data"},
+{company:"Mirum",drug:"Livmarli sNDA",indication:"PFIC",year:2023,origPdufa:"2023-12-13",reason:"Major Amendment (Other)",orphan:"Yes",review:"Priority",accel:"No",appType:"sNDA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"GI/Hepatology",daysNotice:57,status:"Approved",outcome:"Approved Mar 2024",notes:"IBAT inhibitor; expansion from Alagille to PFIC"},
+{company:"Atara Bio",drug:"Tabelecleucel",indication:"EBV+PTLD",year:2024,origPdufa:"2025-01-15",reason:"Facility Inspection",orphan:"Yes",review:"Priority",accel:"Unknown",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:null,status:"Failed",outcome:"CRL Jan 2025; 2nd CRL Apr 2026",notes:"GMP issues at manufacturer; not a PDUFA extension but CRL at PDUFA"},
+{company:"Rocket Pharma",drug:"KRESLADI",indication:"LAD-I",year:2024,origPdufa:"2024-03-31",reason:"CMC/Manufacturing",orphan:"Yes",review:"Priority",accel:"Unknown",appType:"BLA",breakthrough:"No",firstClass:"No",adcom:"No",division:"CBER (Cell/Gene)",daysNotice:46,status:"Failed",outcome:"CRL Jun 2024 (CMC)",notes:"RMAT + RPDD; resub accepted Oct 2025; PDUFA Mar 2026"},
+{company:"Merus",drug:"Zenocutuzumab (Bizengri)",indication:"NRG1+ NSCLC/Pancreatic",year:2024,origPdufa:"2024-11-04",reason:"CMC/Manufacturing",orphan:"Yes",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Oncology/Hematology",daysNotice:-1,status:"Approved",outcome:"Approved Dec 2024 (accelerated)",notes:"First-in-class bispecific HER2/HER3; first NRG1 fusion tx"},
+{company:"Ascendis",drug:"Yorvipath (TransCon PTH)",indication:"Hypoparathyroidism",year:2024,origPdufa:"2024-05-14",reason:"CMC/Manufacturing",orphan:"Yes",review:"Standard",accel:"No",appType:"NDA",breakthrough:"Unknown",firstClass:"Yes",adcom:"No",division:"Metabolic/Endocrine",daysNotice:0,status:"Approved",outcome:"Approved Aug 2024",notes:"First approved hypoparathyroidism tx; drug/device combo; orig CRL May 2023 (CMC)"},
+{company:"Syndax",drug:"Revumenib (Revuforj)",indication:"KMT2Ar Leukemia",year:2024,origPdufa:"2024-09-26",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"NDA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Oncology/Hematology",daysNotice:59,status:"Approved",outcome:"Approved Nov 2024 (accelerated)",notes:"First-in-class menin inhibitor; RTOR; adults + peds age 1+"},
+{company:"Stealth Bio",drug:"Elamipretide (Forzinity)",indication:"Barth Syndrome",year:2024,origPdufa:"2025-01-29",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"Yes",division:"Cardio-Renal",daysNotice:6,status:"Approved",outcome:"Approved Sep 2025 (accelerated)",notes:"First therapy for mitochondrial disease; FDA missed extended PDUFA too; RPDD"},
+{company:"Regeneron/Sanofi",drug:"Dupixent sBLA",indication:"COPD",year:2024,origPdufa:"2024-06-27",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"sBLA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Pulmonary/Allergy",daysNotice:27,status:"Approved",outcome:"Approved Sep 2024",notes:"First biologic for COPD; BOREAS/NOTUS"},
+{company:"Applied Therapeutics",drug:"Govorestat",indication:"Classic Galactosemia",year:2024,origPdufa:"2024-08-28",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Metabolic/Endocrine",daysNotice:153,status:"Failed",outcome:"CRL Nov 2024",notes:"RPDD; CNS-penetrant aldose reductase inhibitor; traditional approval pathway"},
+{company:"Dermavant/Organon",drug:"Tapinarof (VTAMA) sNDA",indication:"Atopic Dermatitis",year:2024,origPdufa:"2024-12-12",reason:"Clinical Data",orphan:"No",review:"Standard",accel:"No",appType:"sNDA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"Dermatology/Ophthalmology",daysNotice:37,status:"Approved",outcome:"Approved Dec 2024",notes:"First-in-class AhR agonist; already approved for psoriasis"},
+{company:"Amgen",drug:"Sotorasib+Panitumumab",indication:"KRAS G12C mCRC",year:2024,origPdufa:"2024-10-17",reason:"Clinical Data",orphan:"No",review:"Standard",accel:"No",appType:"sNDA",breakthrough:"Unknown",firstClass:"Yes",adcom:"No",division:"Oncology/Hematology",daysNotice:0,status:"Approved",outcome:"Approved Jan 2025",notes:"First-in-class KRAS G12C inhibitor combo"},
+{company:"Intercept",drug:"Ocaliva sNDA",indication:"PBC (Full Approval)",year:2024,origPdufa:"2024-10-15",reason:"AdCom Follow-up",orphan:"No",review:"Standard",accel:"Yes",appType:"sNDA",breakthrough:"No",firstClass:"No",adcom:"Yes",division:"GI/Hepatology",daysNotice:-2,status:"Failed",outcome:"CRL Nov 2024",notes:"13-1 against at GIDAC; Ocaliva withdrawn Nov 2025"},
+{company:"Aldeyra",drug:"Reproxalap",indication:"Dry Eye Disease",year:2025,origPdufa:"2025-12-16",reason:"Clinical Data",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"Yes",adcom:"No",division:"Dermatology/Ophthalmology",daysNotice:1,status:"Failed",outcome:"CRL Mar 2026 (3rd)",notes:"First-in-class RASP inhibitor; field trial FAILED primary endpoint"},
+{company:"Soleno",drug:"DCCR / VYKAT XR",indication:"Prader-Willi Syndrome",year:2025,origPdufa:"2024-12-27",reason:"Major Amendment (Other)",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"Metabolic/Endocrine",daysNotice:31,status:"Approved",outcome:"Approved Mar 2025",notes:"First approved PWS hyperphagia treatment"},
+{company:"Cytokinetics",drug:"Aficamten (Myqorzo)",indication:"Obstructive HCM",year:2025,origPdufa:"2025-09-26",reason:"REMS",orphan:"Yes",review:"Standard",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"Cardio-Renal",daysNotice:148,status:"Approved",outcome:"Approved Dec 2025",notes:"Cardiac myosin inhibitor; REMS with boxed warning for HF"},
+{company:"Denali",drug:"Tividenofusp alfa (Avlayah)",indication:"Hunter Syndrome (MPS II)",year:2025,origPdufa:"2026-01-05",reason:"Clinical Data",orphan:"Yes",review:"Priority",accel:"Yes",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Metabolic/Endocrine",daysNotice:84,status:"Approved",outcome:"Approved Mar 2026 (accelerated)",notes:"First biologic crossing BBB for lysosomal storage disease; RPDD"},
+{company:"Ascendis",drug:"Navepegritide (Yuviwel)",indication:"Achondroplasia",year:2025,origPdufa:"2025-11-30",reason:"Labeling/Post-Marketing",orphan:"Yes",review:"Priority",accel:"Yes",appType:"NDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Metabolic/Endocrine",daysNotice:5,status:"Approved",outcome:"Approved Feb 2026 (accelerated)",notes:"Second achondroplasia therapy; once-weekly; RPDD PRV"},
+{company:"Rhythm Pharma",drug:"IMCIVREE sNDA",indication:"Acquired Hypothalamic Obesity",year:2025,origPdufa:"2025-12-20",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"sNDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Metabolic/Endocrine",daysNotice:43,status:"Approved",outcome:"Approved Mar 2026",notes:"First approved AHO therapy; MC4R agonist"},
+{company:"GSK",drug:"Blenrep (belantamab mafodotin)",indication:"R/R Multiple Myeloma",year:2025,origPdufa:"2025-07-23",reason:"AdCom Follow-up",orphan:"Yes",review:"Standard",accel:"No",appType:"BLA",breakthrough:"Unknown",firstClass:"No",adcom:"Yes",division:"Oncology/Hematology",daysNotice:0,status:"Approved",outcome:"Approved Oct 2025",notes:"BCMA ADC; negative ODAC 5-3/7-1; FDA overrode; DREAMM-7/8"},
+{company:"Agios",drug:"Mitapivat (Aqvesme) sNDA",indication:"Thalassemia",year:2025,origPdufa:"2025-09-07",reason:"REMS",orphan:"No",review:"Standard",accel:"No",appType:"sNDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Oncology/Hematology",daysNotice:3,status:"Approved",outcome:"Approved Dec 2025",notes:"First oral thalassemia treatment; REMS for hepatocellular injury"},
+{company:"Sanofi",drug:"Tolebrutinib",indication:"Non-relapsing SPMS",year:2025,origPdufa:"2025-09-28",reason:"Clinical Data",orphan:"No",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Yes",firstClass:"No",adcom:"No",division:"Neurology",daysNotice:6,status:"Failed",outcome:"CRL Dec 2025",notes:"Brain-penetrant BTK inhibitor; severe DILI; 6 Hy's Law cases, 1 death; Phase 3 traditional approval pathway"},
+{company:"Eton Pharma",drug:"ET-400 / Khindivi",indication:"Adrenal Insufficiency",year:2025,origPdufa:"2025-02-28",reason:"Major Amendment (Other)",orphan:"Yes",review:"Standard",accel:"No",appType:"NDA",breakthrough:"Unknown",firstClass:"No",adcom:"No",division:"Metabolic/Endocrine",daysNotice:22,status:"Approved",outcome:"Approved May 2025",notes:"First oral hydrocortisone solution; pediatric rare disease"},
+{company:"KalVista",drug:"Sebetralstat (Ekterly)",indication:"HAE",year:2025,origPdufa:"2025-06-17",reason:"FDA Resource Constraints",orphan:"Yes",review:"Priority",accel:"No",appType:"NDA",breakthrough:"Unknown",firstClass:"Yes",adcom:"No",division:"Pulmonary/Allergy",daysNotice:4,status:"Approved",outcome:"Approved Jul 2025",notes:"First oral on-demand HAE treatment; FDA missed PDUFA (staffing)"},
+{company:"Savara",drug:"Molgramostim (Molbreevi)",indication:"Autoimmune PAP",year:2026,origPdufa:"2026-08-22",reason:"N/A",orphan:"Yes",review:"Priority",accel:"Unknown",appType:"BLA",breakthrough:"Yes",firstClass:"Yes",adcom:"No",division:"Pulmonary/Allergy",daysNotice:null,status:"Pending",outcome:"Pending (PDUFA Aug 22, 2026)",notes:"No extension announced; initial RTF for CMC resolved; IMPALA-2 NEJM pub"},
+{company:"Lantheus",drug:"LNTH-2501",indication:"SSTR+ NET Imaging",year:2026,origPdufa:"2026-03-29",reason:"CMC/Manufacturing",orphan:"No",review:"Standard",accel:"No",appType:"NDA",breakthrough:"No",firstClass:"No",adcom:"No",division:"Other CDER",daysNotice:12,status:"Pending",outcome:"Pending (PDUFA Jun 2026)",notes:"Diagnostic imaging kit; 505(b)(2)"}
+];
+
+// Filter state
+const filters={reason:new Set(),orphan:new Set(),review:new Set(),accel:new Set(),apptype:new Set(),breakthrough:new Set(),firstclass:new Set(),adcom:new Set(),division:new Set(),year:new Set()};
+const filterKeys={reason:'reason',orphan:'orphan',review:'review',accel:'accel',apptype:'appType',breakthrough:'breakthrough',firstclass:'firstClass',adcom:'adcom',division:'division'};
+const filterOptions={
+  reason:["Clinical Data","CMC/Manufacturing","Major Amendment (Other)","REMS","FDA Resource Constraints","Labeling/Post-Marketing","AdCom Follow-up","Facility Inspection","N/A"],
+  orphan:["Yes","No"],
+  review:["Priority","Standard"],
+  accel:["Yes","No"],
+  apptype:["NDA","BLA","sNDA","sBLA"],
+  breakthrough:["Yes","No","Unknown"],
+  firstclass:["Yes","No"],
+  adcom:["Yes","No"],
+  division:["CBER (Cell/Gene)","CBER (Vaccines)","Oncology/Hematology","Neurology","Cardio-Renal","Pulmonary/Allergy","Dermatology/Ophthalmology","Metabolic/Endocrine","GI/Hepatology","Other CDER"],
+  year:["2020","2021","2022","2023","2024","2025","2026"]
+};
+
+let donutChart,scatterChart;
+let sortCol=-1,sortDir=1;
+
+function init(){
+  Object.keys(filterOptions).forEach(group=>{
+    const container=document.querySelector(`[data-group="${group}"]`);
+    filterOptions[group].forEach(val=>{
+      filters[group].add(val);
+      const btn=document.createElement('button');
+      btn.className='toggle-btn active';
+      btn.textContent=val;
+      btn.dataset.value=val;
+      btn.dataset.group=group;
+      btn.onclick=()=>toggleFilter(btn);
+      container.appendChild(btn);
+    });
+  });
+  initCharts();
+  update();
+}
+
+function toggleFilter(btn){
+  const g=btn.dataset.group,v=btn.dataset.value;
+  if(filters[g].has(v)){filters[g].delete(v);btn.classList.remove('active')}
+  else{filters[g].add(v);btn.classList.add('active')}
+  update();
+}
+function selectAll(g){
+  filters[g]=new Set(filterOptions[g]);
+  document.querySelectorAll(`[data-group="${g}"] .toggle-btn`).forEach(b=>b.classList.add('active'));
+  update();
+}
+function selectNone(g){
+  filters[g].clear();
+  document.querySelectorAll(`[data-group="${g}"] .toggle-btn`).forEach(b=>b.classList.remove('active'));
+  update();
+}
+function resetAll(){
+  Object.keys(filterOptions).forEach(g=>selectAll(g));
+}
+
+function matchesFilters(d){
+  if(!filters.year.has(String(d.year))) return false;
+  if(!filters.reason.has(d.reason)) return false;
+  if(!filters.orphan.has(d.orphan)) return false;
+  const rv=d.review==='Priority'?'Priority':'Standard';
+  if(!filters.review.has(rv)) return false;
+  const ac=d.accel==='Yes'?'Yes':'No';
+  if(!filters.accel.has(ac)) return false;
+  let at=d.appType;
+  if(at.includes('sBLA'))at='sBLA';else if(at.includes('sNDA'))at='sNDA';else if(at.includes('BLA'))at='BLA';else at='NDA';
+  if(!filters.apptype.has(at)) return false;
+  const bt=d.breakthrough==='Yes'?'Yes':d.breakthrough==='Unknown'?'Unknown':'No';
+  if(!filters.breakthrough.has(bt)) return false;
+  if(!filters.firstclass.has(d.firstClass)) return false;
+  if(!filters.adcom.has(d.adcom)) return false;
+  if(!filters.division.has(d.division)) return false;
+  return true;
+}
+
+function getFiltered(){return DATA.filter(matchesFilters)}
+
+function update(){
+  const filtered=getFiltered();
+  const resolved=filtered.filter(d=>d.status==='Approved'||d.status==='Failed');
+  const approved=resolved.filter(d=>d.status==='Approved');
+  const failed=resolved.filter(d=>d.status==='Failed');
+  const rate=resolved.length>0?Math.round(approved.length/resolved.length*1000)/10:0;
+
+  document.getElementById('s-rate').textContent=resolved.length>0?rate+'%':'N/A';
+  document.getElementById('s-approved').textContent=approved.length;
+  document.getElementById('s-failed').textContent=failed.length;
+  document.getElementById('s-total').textContent=filtered.length+(filtered.some(d=>d.status==='Pending'||d.status==='Mixed')?' ('+resolved.length+' resolved)':'');
+
+  updateDonut(approved.length,failed.length);
+  updateScatter(filtered);
+  updateTiming(approved,failed);
+  updateTable(filtered);
+  updateComparables();
+}
+
+function initCharts(){
+  const dctx=document.getElementById('donutChart').getContext('2d');
+  donutChart=new Chart(dctx,{type:'doughnut',data:{labels:['Approved','CRL/Failed'],datasets:[{data:[0,0],backgroundColor:['#22c55e','#ef4444'],borderWidth:0,hoverOffset:4}]},options:{responsive:true,maintainAspectRatio:true,cutout:'65%',plugins:{legend:{display:true,position:'bottom',labels:{color:'#94a3b8',font:{size:11},padding:12}}}}});
+
+  const sctx=document.getElementById('scatterChart').getContext('2d');
+  scatterChart=new Chart(sctx,{type:'scatter',data:{datasets:[]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{title:{display:true,text:'Days Notice Before Original PDUFA',color:'#94a3b8',font:{size:11}},ticks:{color:'#94a3b8'},grid:{color:'#1a223688'}},y:{display:false,min:-1,max:2}},plugins:{legend:{display:true,position:'top',labels:{color:'#94a3b8',font:{size:10},usePointStyle:true,pointStyle:'circle'}},tooltip:{callbacks:{label:function(ctx){const d=ctx.raw;return d.label+' ('+d.x+' days)'}}}}}});
+}
+
+function updateDonut(a,f){
+  donutChart.data.datasets[0].data=[a,f];
+  donutChart.data.labels=['Approved ('+a+')','CRL/Failed ('+f+')'];
+  donutChart.update();
+}
+
+function updateScatter(filtered){
+  const approved=[],failed=[];
+  filtered.forEach(d=>{
+    if(d.daysNotice===null||d.status==='Pending'||d.status==='Mixed') return;
+    const pt={x:d.daysNotice,y:0.5+Math.random()*0.8-0.4,label:d.company+' / '+d.drug};
+    if(d.status==='Approved') approved.push(pt);
+    else failed.push(pt);
+  });
+  scatterChart.data.datasets=[
+    {label:'Approved',data:approved,backgroundColor:'#22c55eaa',pointRadius:6,pointHoverRadius:9},
+    {label:'CRL/Failed',data:failed,backgroundColor:'#ef4444aa',pointRadius:6,pointHoverRadius:9}
+  ];
+  scatterChart.update();
+}
+
+function updateTiming(approved,failed){
+  const aDays=approved.filter(d=>d.daysNotice!==null&&d.daysNotice>=0).map(d=>d.daysNotice);
+  const fDays=failed.filter(d=>d.daysNotice!==null&&d.daysNotice>=0).map(d=>d.daysNotice);
+  const aAvg=aDays.length?Math.round(aDays.reduce((a,b)=>a+b,0)/aDays.length):0;
+  const fAvg=fDays.length?Math.round(fDays.reduce((a,b)=>a+b,0)/fDays.length):0;
+  const aMed=aDays.length?median(aDays):0;
+  const fMed=fDays.length?median(fDays):0;
+
+  document.getElementById('t-avg-approved').textContent=aDays.length?aAvg+' days':'N/A';
+  document.getElementById('t-avg-failed').textContent=fDays.length?fAvg+' days':'N/A';
+
+  let insight='';
+  if(aDays.length&&fDays.length){
+    if(fAvg>aAvg) insight=`<strong>Observation:</strong> CRL cases had extensions announced on average ${fAvg-aAvg} days earlier (${fAvg}d vs ${aAvg}d). Median: ${fMed}d (CRL) vs ${aMed}d (Approved). Very early announcements (>100d) may signal deeper review concerns. However, timing alone is a weak predictor — extension reason and designations are far more informative.`;
+    else insight=`<strong>Observation:</strong> Approved cases had extensions announced on average ${aAvg-fAvg} days earlier (${aAvg}d vs ${fAvg}d). Median: ${aMed}d (Approved) vs ${fMed}d (CRL). Timing of announcement does not appear to strongly predict outcome in this dataset.`;
+  } else if(aDays.length){
+    insight=`<strong>Note:</strong> Average announcement lead time for approved cases: ${aAvg} days (median: ${aMed}d). No CRL cases in current filter to compare.`;
+  } else {
+    insight='Insufficient data for timing analysis in current filter selection.';
+  }
+  document.getElementById('timing-insight').innerHTML=insight;
+}
+
+function median(arr){const s=[...arr].sort((a,b)=>a-b);const m=Math.floor(s.length/2);return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2)}
+
+function updateTable(filtered){
+  const tbody=document.getElementById('case-table');
+  document.getElementById('table-count').textContent=filtered.length+' cases';
+  if(sortCol>=0){
+    const keys=['company','drug','indication','year','reason','daysNotice','orphan','review','appType','breakthrough','division','status'];
+    filtered.sort((a,b)=>{
+      let va=a[keys[sortCol]],vb=b[keys[sortCol]];
+      if(va===null)va=-999;if(vb===null)vb=-999;
+      if(typeof va==='string')return va.localeCompare(vb)*sortDir;
+      return (va-vb)*sortDir;
+    });
+  }
+  tbody.innerHTML=filtered.map(d=>{
+    const sc=d.status==='Approved'?'approved':d.status==='Failed'?'failed':d.status==='Pending'?'pending':'mixed';
+    const dn=d.daysNotice!==null?d.daysNotice:'N/A';
+    return `<tr title="${d.notes}"><td>${d.company}</td><td>${d.drug}</td><td>${d.indication}</td><td>${d.year}</td><td>${d.reason}</td><td>${dn}</td><td>${d.orphan}</td><td>${d.review}</td><td>${d.appType}</td><td>${d.breakthrough}</td><td>${d.division}</td><td><span class="status-pill ${sc}">${d.status}</span></td></tr>`;
+  }).join('');
+}
+
+function sortTable(col){
+  if(sortCol===col)sortDir*=-1;else{sortCol=col;sortDir=1}
+  update();
+}
+
+function updateComparables(){
+  // Savara profile: Orphan=Yes, BLA, Priority, Breakthrough=Yes, AdCom=No
+  const comps=DATA.filter(d=>
+    d.orphan==='Yes'&&
+    d.appType.includes('BLA')&&
+    d.review==='Priority'&&
+    d.breakthrough==='Yes'&&
+    d.adcom==='No'&&
+    d.status!=='Pending'&&d.status!=='Mixed'
+  );
+  const a=comps.filter(d=>d.status==='Approved');
+  const f=comps.filter(d=>d.status==='Failed');
+  const rate=comps.length>0?Math.round(a.length/comps.length*1000)/10:0;
+
+  document.getElementById('comp-rate').textContent=comps.length>0?rate+'%':'N/A';
+  document.getElementById('comp-count').textContent=comps.length;
+  document.getElementById('comp-approved').textContent=a.length;
+  document.getElementById('comp-failed').textContent=f.length;
+
+  const listEl=document.getElementById('comp-list');
+  listEl.innerHTML=comps.map(d=>{
+    const sc=d.status==='Approved'?'color:var(--green)':'color:var(--red)';
+    return `<div class="item"><span class="name">${d.company} / ${d.drug} — ${d.indication}</span><span style="${sc};font-weight:600">${d.status}</span></div>`;
+  }).join('');
+  if(!comps.length) listEl.innerHTML='<div style="padding:8px;color:var(--text2)">No exact matches. Try broadening criteria.</div>';
+}
+
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
